@@ -1,0 +1,44 @@
+{
+    "compilerOptions": {
+        "target": "es2016",
+        "lib": ["es6"],
+        "module": "commonjs",
+        "rootDir": "src",
+
+        /* Strict Type-Checking Options */
+        "strict": true,
+        "noImplicitAny": true,
+        "strictPropertyInitialization": false,
+
+        /**/
+        /* Experimental Options */
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+
+        /* Advanced Options */
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+
+        "allowJs": true,
+
+        /* Module Resolution Options */
+        "baseUrl": "./",
+        "paths": {
+            "@config/*": ["src/config/*"],
+            "@modules/*": ["src/modules/*"],
+            "@shared/*": ["src/shared/*"]
+        },
+        "typeRoots": [
+            "@types",
+            "./node_modules/@types"
+        ],
+        "outDir": "build",
+        "esModuleInterop": true,
+        "types": ["node"] // Adicione esta linha
+    },
+    "ts-node": {
+        // Adicione esta seção para desenvolvimento
+        "require": ["tsconfig-paths/register"]
+    }
+}
