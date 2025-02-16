@@ -10,16 +10,16 @@ interface ITemplateVariable {
   [key: string]: string | number;
 }
 
-interface IParseMailTemplate { // Fixed interface name (capital "T")
+interface IParseMailTemplate {
   template: string;
   variables: ITemplateVariable;
 }
 
 interface ISendMail {
-  to: IMailContact; // Fixed type (was "string")
+  to: IMailContact;
   from?: IMailContact;
   subject: string;
-  templateData: IParseMailTemplate; // Fixed interface reference
+  templateData: IParseMailTemplate; 
 }
 
 export default class EtherealMail {
@@ -53,7 +53,7 @@ export default class EtherealMail {
         address: to.email,
       },
       subject,
-      html: await mailTemplate.parser(templateData), // Standardized method name
+      html: await mailTemplate.parse(templateData), // Standardized method name
     });
 
     console.log('Message sent: %s', message.messageId);
