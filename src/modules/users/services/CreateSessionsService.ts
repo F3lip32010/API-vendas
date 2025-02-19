@@ -32,7 +32,7 @@ class CreateSessionsService {
         }   
 
         const token = sign({}, authConfig.jwt.secret, {
-            subject: user.name,
+            subject: user.id,
             expiresIn: authConfig.jwt.expiresIn,
         });
 
