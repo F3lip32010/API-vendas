@@ -4,15 +4,16 @@ import Order from '../typeorm/entities/Order';
 import OrdersRepository from '../typeorm/repositories/OrdersRepository';
 import CustomersRepository from '@modules/customers/typeorm/repositories/CustomersRepository';
 import { ProductRepository } from '@modules/products/typeorm/repositories/ProductsRepository';
+import Product from '@modules/products/typeorm/entities/Product';
 
-interface IProduct {
+interface IProductRequest {
     id: string;
     quantity: number;
 }
 
 interface IRequest {
     customer_id: string;
-    products: IProduct[];
+    products: IProductRequest[];
 }
 
 class CreateOrderService {
@@ -21,70 +22,89 @@ class CreateOrderService {
         const customersRepository = getCustomRepository(CustomersRepository);
         const productsRepository = getCustomRepository(ProductRepository);
 
-        const customerExists = await customersRepository.findById(customer_id);
-
-        if (!customerExists) {
-            throw new AppError(
-                'Could not find any customer with the given id.',
-            );
+        // Validação do cliente
+        const customer = await customersRepository.findById(customer_id);
+        if (!customer) {
+            throw new AppError('Customer not found.', 404);
         }
 
-        const existsProducts = await productsRepository.findAllByIds(products);
-
-        if (!existsProducts.length) {
-            throw new AppError(
-                'Could not find any products with the given id.',
-            );
-        }
-
-        const existsProductsIds = existsProducts.map(product => product.id);
-
-        const checkInexistentProducts = products.filter(
-            product => !existsProductsIds.includes(product.id),
+        // Busca produtos
+        const existingProducts = await productsRepository.findAllByIds(
+            products.map(p => ({ id: p.id })),
         );
 
-        if (checkInexistentProducts.length) {
+        // Valida existência dos produtos
+        if (existingProducts.length !== products.length) {
+            const missingIds = products
+                .filter(p => !existingProducts.some(ep => ep.id === p.id))
+                .map(p => p.id);
             throw new AppError(
-                `Could not find product ${checkInexistentProducts[0].id}.`,
+                `Products not found: ${missingIds.join(', ')}`,
+                404,
             );
         }
 
-        const quantityAvailable = products.filter(
-            product =>
-                existsProducts.filter(p => p.id === product.id)[0].quantity <
-                product.quantity,
-        );
-
-        if (quantityAvailable.length) {
-            throw new AppError(
-                `The quantity ${quantityAvailable[0].quantity}
-                 is not available for ${quantityAvailable[0].id}.`,
-            );
-        }
-
-        const serializedProducts = products.map(product => ({
-            product_id: product.id,
-            quantity: product.quantity,
-            price: existsProducts.filter(p => p.id === product.id)[0].price,
-        }));
-
-        const order = await ordersRepository.createOrder({
-            customer: customerExists,
-            products: serializedProducts,
+        // Verifica estoque
+        const insufficientStockProducts = existingProducts.filter(ep => {
+            const requestedQuantity = products.find(
+                p => p.id === ep.id,
+            )!.quantity;
+            return ep.quantity < requestedQuantity;
         });
 
-        const { order_products } = order;
+        if (insufficientStockProducts.length > 0) {
+            const messages = insufficientStockProducts.map(
+                ep =>
+                    `Product ${ep.id} has only ${ep.quantity} units available`,
+            );
+            throw new AppError(messages.join(' | '), 400);
+        }
 
-        const updateProductQuantity = order_products.map(product => ({
-            id: product.product_id,
-            quantity:
-                existsProducts.filter(p => p.id === product.id)[0].quantity -
-                product.quantity,
-        }));
+        // Transação
+        const queryRunner =
+            ordersRepository.manager.connection.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
 
-        await productsRepository.save(updateProductQuantity);
+        try {
+            // Serializa produtos
+            const serializedProducts = products.map(p => ({
+                product_id: p.id,
+                quantity: p.quantity,
+                price: existingProducts.find(ep => ep.id === p.id)!.price,
+            }));
 
-        return order;
+            // Cria ordem dentro da transação
+            const order = await ordersRepository.createOrder({
+                customer,
+                products: serializedProducts,
+                manager: queryRunner.manager,
+            });
+
+            // Atualiza estoque
+            await Promise.all(
+                existingProducts.map(async ep => {
+                    ep.quantity -= products.find(p => p.id === ep.id)!.quantity;
+                    await queryRunner.manager.save(ep);
+                }),
+            );
+
+            await queryRunner.commitTransaction();
+            return order;
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            console.error('[ORDER SERVICE ERROR]', error);
+
+            if (error instanceof AppError) throw error;
+            throw new AppError(
+                'Failed to create order. Please try again.',
+                500,
+            );
+        } finally {
+            await queryRunner.release();
+        }
+
+        // Dentro do bloco try:
     }
 }
 

@@ -7,8 +7,9 @@ import {
 
 export class AddCustomerIdToOrders1740176474567 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // Adiciona customer_id à tabela ORDERS (não orders_products)
         await queryRunner.addColumn(
-            'orders',
+            'orders', // Correção: tabela orders
             new TableColumn({
                 name: 'customer_id',
                 type: 'uuid',
@@ -16,10 +17,11 @@ export class AddCustomerIdToOrders1740176474567 implements MigrationInterface {
             }),
         );
 
+        // Cria foreign key em ORDERS (não orders_products)
         await queryRunner.createForeignKey(
-            'orders_products',
+            'orders', // Correção: tabela orders
             new TableForeignKey({
-                name: 'OrdersProductsOrder',
+                name: 'OrdersCustomer', // Nome corrigido
                 columnNames: ['customer_id'],
                 referencedTableName: 'customers',
                 referencedColumnNames: ['id'],
@@ -29,10 +31,9 @@ export class AddCustomerIdToOrders1740176474567 implements MigrationInterface {
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.dropForeignKey(
-            'orders_products',
-            'OrdersProductsOrder',
-        );
-        await queryRunner.dropColumn('orders_products', 'order_id');
+        // Remove a foreign key de ORDERS
+        await queryRunner.dropForeignKey('orders', 'OrdersCustomer');
+        // Remove a coluna de ORDERS
+        await queryRunner.dropColumn('orders', 'customer_id');
     }
 }
