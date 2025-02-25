@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import AppError from "@shared/errors/AppError";
 import ShowProfileService from "../services/ShowProfileService";
 import UpdateProfileSerivce from "../services/UpdateProfileService";
+import { instanceToInstance } from 'class-transformer';
 
 export default class ProfileController {
     public async show(request: Request, response: Response): Promise<Response> {
@@ -10,7 +11,7 @@ export default class ProfileController {
 
         const user = await showProfile.execute({ user_id });
 
-        return response.json(user);
+        return response.json(instanceToInstance(user));
     }
 
     public async update(request: Request, response: Response): Promise<Response> {
@@ -28,7 +29,7 @@ export default class ProfileController {
                 old_password
             });
     
-            return response.json(user);
+            return response.json(instanceToInstance(user));
         } catch (error) {
             if (error instanceof AppError) {
                 return response.status(400).json({ message: error.message });
