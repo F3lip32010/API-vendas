@@ -1,7 +1,14 @@
+// src/shared/cache/RedisCache.ts
 import Redis, { Redis as RedisClient } from 'ioredis';
 import cacheConfig from '@config/cache';
 
-export default class RedisCache {
+interface RedisCacheInterface {
+    save(key: string, value: any): Promise<void>;
+    recover<T>(key: string): Promise<T | null>;
+    invalidate(key: string): Promise<void>;
+}
+
+export default class RedisCache implements RedisCacheInterface {
     private client: RedisClient;
 
     constructor() {

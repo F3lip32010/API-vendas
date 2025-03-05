@@ -11,7 +11,7 @@ export default {
     config: {
         redis: {
             host: process.env.REDIS_HOST,
-            PORT: process.env.REDIS_PORT,
+            port: process.env.REDIS_PORT, 
             password: process.env.REDIS_PASS || undefined,
         },
     },
